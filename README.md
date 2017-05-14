@@ -17,7 +17,7 @@
 
 ## Opis warsztatów
 
-Podczas warsztatów pracować będziemy z danymi pochodzącymi z badania *The Cancer Genome Atlas* (https://cancergenome.nih.gov/). Dane będą wcześniej przygotowane i nie będzie potrzebna dodatkowa instalacja żadnego pakietu. Skupimy się na danych klinicznych, danych o mutacjach genów i danych o ekspresjach genów. Opis danych pojawi się na stronie warsztatu i zostanie przesłany zarejestrowanym uczestnikom odpowiednio wcześniej przed warsztatem.
+Podczas warsztatów pracować będziemy z danymi pochodzącymi z badania *The Cancer Genome Atlas* (https://cancergenome.nih.gov/). Dane będą wcześniej przygotowane i nie będzie potrzebna dodatkowa instalacja żadnego pakietu. Skupimy się na danych klinicznych, danych o mutacjach genów i danych o ekspresji genów. Opis danych pojawi się na stronie warsztatu i zostanie przesłany zarejestrowanym uczestnikom odpowiednio wcześniej przed warsztatem.
 
 Od uczestników oczekuje się, że potrafią samodzielnie:
 
@@ -28,7 +28,7 @@ Od uczestników oczekuje się, że potrafią samodzielnie:
 
 Testy statystyczne wykorzystywane są w wielu dziedzinach nauki. Pomagają weryfikować hipotezy badawcze. Ich przykłady użycia znaleźć można w wielu czasopismach naukowych z obszarów biologii, medycyny czy bioinformatyki. Można rzec, że są podstawą w dzisiejszym procesie przeprowadzania badań klinicznych, dlatego warto je rozumieć i umieć z nich korzystać.
 
-W ramach warsztatu pokażemy podstawowe testy statystyczne dostępne w R. Omówimy z grubsza metodologię oraz na przykładach przedstawimy kilka zastosowań do danych klinicznych. Pokażemy jak odczytywać, interpretować i zapisywać wyniki przeprowadzonych testów statystycznych. Postaramy się przedstawić testy dla 2ch grup, dla wielu grup, testy post-hoc oraz zwrócimy szczególną uwagę na problemy związane z testowaniem zbioru hipotez (czasem nazywanym wielokrotnym testowaniem).
+W ramach warsztatu pokażemy podstawowe testy statystyczne dostępne w R. Omówimy metodologię oraz na przykładach przedstawimy kilka zastosowań do danych klinicznych. Pokażemy jak odczytywać, interpretować i zapisywać wyniki przeprowadzonych testów statystycznych. Postaramy się przedstawić testy dla 2ch grup, dla wielu grup, testy post-hoc oraz zwrócimy szczególną uwagę na problemy związane z testowaniem zbioru hipotez (czasem nazywanym wielokrotnym testowaniem).
 
 ### Podstawy klasyfikacji w R
 
