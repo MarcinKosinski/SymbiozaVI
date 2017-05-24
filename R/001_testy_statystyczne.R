@@ -1,7 +1,7 @@
 #
 
 #### wczytanie danych ####
-bio_data <- read.csv('bio_data.csv') # albo pelna sciezka do pliku
+bio_data <- read.csv('data/bio_data.csv') # albo pelna sciezka do pliku
 head(bio_data)    # naglowek danych / pierwsze 6 rekordow
 dim(bio_data)     # wymiary danych, liczba wierszy i kolumn
 View(bio_data)    # podgląd danych

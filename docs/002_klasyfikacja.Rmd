@@ -1,0 +1,201 @@
+---
+title: "Klasyfikacja"
+author: "Krzysztof Słomczyński"
+date: "May 24, 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Czym jest klasyfikacja?
+
+Klasyfikacja polega na przewidywaniu **dyskretnej** zmiennej objaśnianej.
+
+Przykładowe problemy klasyfikacji:
+
+  - Czy wiadomość email jest spamem, czy nie?
+  - Czy transakcja jest oszustwem, czy nie?
+  - Czy nowotwór jest złośliwy, czy nie?
+
+Najprostszą wersją tego zagadnienia jest klasyfikacja binarna, gdzie zmienna objaśniana Y z założenia może przyjąć tylko jedną z dwóch wartości -- Fałsz (0) lub Prawdę (1).
+
+# Regresja liniowa w problemie klasyfikacji
+
+```{r message = FALSE}
+library(ggplot2)
+```
+
+```{r}
+tumor <- data.frame(x = c(1:4, 6:9), y = c(rep(c(0, 1), each = 4)))
+lm_model <- lm(formula = y ~ x, data = tumor)
+
+plot(x = tumor$x,
+     y = tumor$y,
+     main = "Regresja liniowa – dobra?",
+     xlab = "Rozmiar guza [j]",
+     ylab = "Złośliwy?",
+     xlim = c(0, 10),
+     axes = FALSE)
+axis(1, at = 0:10)
+axis(2, at = c(0, 1))
+curve(predict(object = lm_model, data.frame(x = x), type = "resp"),
+      col = "blue", add = TRUE)
+points(5, 0.5, cex = 2, col = "green", pch = "|")
+lines(x = c(5, 5), y = c(0, 1), col = "red", lty = 2)
+
+ggplot(data = tumor, mapping = aes(x = x, y = y)) +
+  geom_point() +
+  stat_smooth(method = "lm", col = "blue") +
+  geom_point(mapping = aes(x = x, y = y),
+             data = data.frame(x = 5, y = 0.5),
+             cex = 8, col = "green", pch = "|") +
+  geom_vline(xintercept = 5, col = "red", lty = 2) +
+  scale_y_continuous(breaks = c(0, 1), labels = c("Nie", "Tak")) +
+  labs(x = "Rozmiar guza [j]", y = "Złośliwy?") +
+  ggtitle("Regresja liniowa – dobra?") +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+```{r}
+tumor[9, ] <- c(20, 1)
+lm_model <- lm(formula = y ~ x, data = tumor)
+
+plot(x = tumor$x,
+     y = tumor$y,
+     main = "Regresja liniowa – nie dobra!",
+     xlab = "Rozmiar guza [j]",
+     ylab = "Złośliwy?",
+     xlim = c(0, 20),
+     axes = FALSE)
+axis(1, at = 0:20)
+axis(2, at = c(0, 1), labels = c("Nie", "Tak"))
+curve(predict(object = lm_model, data.frame(x = x), type = "resp"),
+      col = "blue", add = TRUE)
+points(7, 0.575, cex = 2, col = "green", pch = "|")
+lines(x = c(7, 7), y = c(0, 1), col = "red", lty = 2)
+
+ggplot(data = tumor, mapping = aes(x = x, y = y)) +
+  geom_point() +
+  stat_smooth(method = "lm", col = "blue") +
+  geom_point(mapping = aes(x = x, y = y),
+             data = data.frame(x = 7, y = 0.575),
+             cex = 8, col = "green", pch = "|") +
+  geom_vline(xintercept = 7, col = "red", lty = 2) +
+  scale_y_continuous(breaks = c(0, 1), labels = c("Nie", "Tak")) +
+  labs(x = "Rozmiar guza [j]", y = "Złośliwy?") +
+  ggtitle("Regresja liniowa – nie dobra!") +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+Dziwnym byłoby przewidywanie wartości Y wykraczającej poza przedział [0, 1], (poza "Nie" i "Tak").
+
+# Regresja logistyczna
+
+Najpopularniejszym algorytmem służącym do rozwiązywania problemów klasyfikacji jest **regresja logistyczna**. Wykorzystuje ona funkcję sigmoidalną zadaną wzorem $g(z) = \frac{1}{1 + e^{-x}}$.
+
+```{r}
+glm_model <- glm(formula = y ~ x, family = binomial, data = tumor)
+
+plot(x = tumor$x,
+     y = tumor$y,
+     main = "Regresja logistyczna",
+     xlab = "Rozmiar guza [j]",
+     ylab = "Złośliwy?",
+     xlim = c(0, 20),
+     axes = FALSE)
+axis(1, at = 0:20)
+axis(2, at = c(0, 1), labels = c("Nie", "Tak"))
+curve(predict(object = glm_model, data.frame(x = x), type = "resp"),
+      col = "blue", add = TRUE)
+points(5, 0.5, cex = 2, col = "green", pch = "|")
+
+ggplot(data = tumor, mapping = aes(x = x, y = y)) +
+  geom_point() +
+  stat_smooth(method = "glm", method.args = list(family = "binomial"),
+              col = "blue") +
+  geom_point(mapping = aes(x = x, y = y),
+             data = data.frame(x = 5, y = 0.5),
+             cex = 8, col = "green", pch = "|") +
+  geom_vline(xintercept = 5, col = "red", lty = 2) +
+  scale_y_continuous(breaks = c(0, 1), labels = c("Nie", "Tak")) +
+  labs(x = "Rozmiar guza [j]", y = "Złośliwy?") +
+  ggtitle("Regresja logistyczna") +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+# Operacje na danych biologicznych.
+
+`broom` -- pakiet ułatwiająca korzystanie z modeli otrzymanych za pomocą podstawowego pakietu `stats`.
+`caret` -- pakiet ujednolicający środowisko pracy w uczeniu statystycznym.
+
+```{r}
+library(broom)
+library(caret)
+```
+
+## Podział danych na dwa zestawy -- treningowy i testowy.
+
+Na zestawie treningowym wyszkolimy model regresji logistycznej, który wypróbujemy później na zbiorze testowym. W przygotowaniu zbiorów pomoże nam funkcja `createDataPartition` z pakietu `caret`. Dzięki niej mamy pewność, że unikniemy przypadkowego przydzielenia np. wszystkich zmarłych pacjentów tylko i wyłącznie do jednego z zestawów. Na początek przyjrzyjmy się, czy chcemy budować model na wszystkich dostępnych zmiennych w ramce danych. We wstępnej selekcji równiez pomogą nam funkcje z pakietu `caret`.
+
+```{r}
+data_set <- read.csv("../data/bio_data.csv")
+
+# Pozbycie się niepełnych obserwacji i identyfikatora
+data_set <- data_set[complete.cases(data_set),
+                     colnames(data_set) != "bcr_patient_barcode"]
+
+# Sprawdzenie, czy któreś ze zmiennych objaśniajacych nie posiadają wariancji bliskiej zeru
+near_zero_var <- nearZeroVar(x = data_set, saveMetrics = TRUE)
+
+# Sprawdzenie, czy niektóre zmienne nie są ze sobą silnie skorelowane
+matrix_set <- data.matrix(data_set)
+correlation <- cor(matrix_set)
+summary(correlation[upper.tri(correlation)])
+find_correlation <- findCorrelation(correlation, cutoff = .5,
+                                    verbose = TRUE, names = TRUE)
+
+# Sprawdzenie liniowych zależności
+comboInfo <- findLinearCombos(matrix_set)
+```
+
+```{r}
+set.seed(42)
+train_rows <- createDataPartition(y = data_set$status, p = 0.8, list = FALSE)
+train <- data_set[train_rows, ]
+test <- data_set[-train_rows, ]
+```
+
+## Szkolenie modelu
+
+Kropka w formule oznacza, że chcemy stworzyć model od wszystkich dostępnych zmiennych objaśniających.
+
+```{r}
+glm_model <- glm(formula = status ~ ., data = train)
+```
+
+Przyjrzyjmy się wyszkolonemu modelowi
+
+```{r}
+glm_model
+```
+
+Informacje nie są zbyt czytelne. W celu ujednolicenia informacji o modelu posłużymy się funkcjami z pakietu `broom`.
+
+```{r}
+glm_tidy <- tidy(glm_model)
+glm_glance <- glance(glm_model)
+```
+
+Możemy zauważyć, że ciągła zmienna objaśniająca `times` występuje tylko raz, natomiast każda dyskretna zmienna objaśniająca (np. `cancer`) została zastąpiona o jedną mniej zmienną (dwoma) niż posiadała pierwotnie przybierając wartości 0 i 1. 
+
+```{r}
+prediction <- predict(object = glm_model, newdata = test, type = "response")
+prediction <- round(x = prediction, digits = 0)
+prediction_frame <- data.frame(actual = test$status, predicted = prediction,
+                               row.names = 1:length(test$status))
+confusion_matrix <- table(prediction_frame$actual, prediction_frame$predicted,
+                          dnn = c("Actual", "Predicted"))
+confusionMatrix(confusion_matrix, positive = "1")
+```
