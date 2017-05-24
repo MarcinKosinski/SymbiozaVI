@@ -125,9 +125,10 @@ ggplot(data = tumor, mapping = aes(x = x, y = y)) +
   theme(plot.title = element_text(hjust = 0.5))
 ```
 
-# Operacje na danych biologicznych.
+## Operacje na danych biologicznych.
 
-`broom` -- pakiet ułatwiająca korzystanie z modeli otrzymanych za pomocą podstawowego pakietu `stats`.
+`broom` -- pakiet ułatwiający korzystanie z modeli otrzymanych za pomocą podstawowego pakietu `stats`.
+
 `caret` -- pakiet ujednolicający środowisko pracy w uczeniu statystycznym.
 
 ```{r}
@@ -137,7 +138,7 @@ library(caret)
 
 ## Podział danych na dwa zestawy -- treningowy i testowy.
 
-Na zestawie treningowym wyszkolimy model regresji logistycznej, który wypróbujemy później na zbiorze testowym. W przygotowaniu zbiorów pomoże nam funkcja `createDataPartition` z pakietu `caret`. Dzięki niej mamy pewność, że unikniemy przypadkowego przydzielenia np. wszystkich zmarłych pacjentów tylko i wyłącznie do jednego z zestawów. Na początek przyjrzyjmy się, czy chcemy budować model na wszystkich dostępnych zmiennych w ramce danych. We wstępnej selekcji równiez pomogą nam funkcje z pakietu `caret`.
+Na zestawie treningowym wyszkolimy model regresji logistycznej, który wypróbujemy później na zbiorze testowym. W przygotowaniu zbiorów pomoże nam funkcja `createDataPartition` z pakietu `caret`. Dzięki niej mamy pewność, że unikniemy przypadkowego przydzielenia np. wszystkich zmarłych pacjentów tylko i wyłącznie do jednego z zestawów. Na początek przyjrzyjmy się, czy chcemy budować model na wszystkich dostępnych zmiennych w ramce danych. We wstępnej selekcji również pomogą nam funkcje z pakietu `caret`.
 
 ```{r}
 data_set <- read.csv("../data/bio_data.csv")
@@ -148,6 +149,7 @@ data_set <- data_set[complete.cases(data_set),
 
 # Sprawdzenie, czy któreś ze zmiennych objaśniajacych nie posiadają wariancji bliskiej zeru
 near_zero_var <- nearZeroVar(x = data_set, saveMetrics = TRUE)
+near_zero_var
 
 # Sprawdzenie, czy niektóre zmienne nie są ze sobą silnie skorelowane
 matrix_set <- data.matrix(data_set)
@@ -155,9 +157,11 @@ correlation <- cor(matrix_set)
 summary(correlation[upper.tri(correlation)])
 find_correlation <- findCorrelation(correlation, cutoff = .5,
                                     verbose = TRUE, names = TRUE)
+find_correlation
 
 # Sprawdzenie liniowych zależności
 comboInfo <- findLinearCombos(matrix_set)
+comboInfo
 ```
 
 ```{r}
@@ -185,17 +189,78 @@ Informacje nie są zbyt czytelne. W celu ujednolicenia informacji o modelu posł
 
 ```{r}
 glm_tidy <- tidy(glm_model)
+glm_tidy
 glm_glance <- glance(glm_model)
+glm_glance
 ```
 
-Możemy zauważyć, że ciągła zmienna objaśniająca `times` występuje tylko raz, natomiast każda dyskretna zmienna objaśniająca (np. `cancer`) została zastąpiona o jedną mniej zmienną (dwoma) niż posiadała pierwotnie przybierając wartości 0 i 1. 
+Możemy zauważyć, że ciągła zmienna objaśniająca `times` występuje tylko raz, natomiast każda dyskretna zmienna objaśniająca (np. `cancer`) została zastąpiona o jedną mniej zmienną (w tym wypadku dwoma) niż posiadała pierwotnie. Każda z tych nowych zmiennych (tzw. dummy variables) przybierają wartości 0 i 1 (dla danej obserwacji wystąpił dany typ raka, albo nie wystąpił). Wariantowi z trzecią -- brakującą zmienną odpowiada sytuacja, w której wszystkie nowopowstałe zmienne (od danej zmiennej) przyjmuja wartość 0.
 
 ```{r}
 prediction <- predict(object = glm_model, newdata = test, type = "response")
 prediction <- round(x = prediction, digits = 0)
 prediction_frame <- data.frame(actual = test$status, predicted = prediction,
                                row.names = 1:length(test$status))
-confusion_matrix <- table(prediction_frame$actual, prediction_frame$predicted,
-                          dnn = c("Actual", "Predicted"))
-confusionMatrix(confusion_matrix, positive = "1")
+prediction_frame <- sapply(X = prediction_frame, FUN = plyr::mapvalues,
+                           from = c(0, 1), to = c("Survived", "Passed"))
+prediction_frame <- as.data.frame(prediction_frame)
+confusion_matrix <- table(prediction_frame$predicted, prediction_frame$actual,
+                          dnn = c("predicted", "actual"))
+confusion_matrix <- confusionMatrix(confusion_matrix, positive = "Passed")
+glm_score <- confusion_matrix$byClass["Sensitivity"] +
+  confusion_matrix$byClass["Specificity"]
+glm_score <- unname(glm_score)
+glm_score
+unname(glm_score/2 == confusion_matrix$byClass["Balanced Accuracy"])
 ```
+
+Wizualizacja macierzy pomyłek.
+
+```{r}
+actual_class <- rep(dimnames(confusion_matrix$table)$actual,
+                    each = 2)
+prediction_class <- rep(dimnames(confusion_matrix$table)$predicted,
+                        times = 2)
+label <- paste(c("True Positive", "False Negative",
+                 "False Positive", "True Negative"),
+               as.vector(confusion_matrix$table),
+               sep = "\n")
+fill <- c("green", "red", "red", "green")
+confusion_frame <- data.frame(actual = actual_class,
+                              prediction = prediction_class,
+                              label = label,
+                              fill = fill)
+
+ggplot(data =  confusion_frame,
+       mapping = aes(x = actual, y = prediction, fill = fill,
+                     label = label)) +
+  geom_tile() +
+  geom_text() +
+  scale_fill_identity() +
+  scale_x_discrete(position = "top") +
+  scale_y_discrete(limits = rev(levels(confusion_frame$prediction))) +
+  ggtitle("Macierz pomyłek") +
+  theme_bw() +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+Parametrów wynikających z macierzy pomyłek jest znacznie więcej. Skupimy się na dwóch poniższych i to za ich pomocą będziemy oceniać skuteczność naszego modelu.
+
+- True Positive Rate -- TPR, Sensitivity
+
+    $True Positive Rate = \frac{True Positive}{True Positive + False Negative}$
+    
+- True Negative Rate -- TNR, Specificity
+
+    $True Negative Rate = \frac{True Negative}{True Negative + False Positive}$
+
+Oba te parametry uwzględniają liczebność swoich klas, co jest **bardzo** istotne w ocenie modelu. W naszym przypadku klasy różnią się od siebie liczebnością w znaczącym stopniu (zmarło 40 pacjentów, przeżyło 205). Zauważmy, że naiwnie zakładając przeżycie każdego pacjenta otrzymujemy aż 205 trafnych predykcji z 245 uzyskując tylko pozornie lepszy model. Dlatego tak **bardzo** ważne jest uwzględnienie liczebności klas.
+
+```{r}
+205/245
+glm_score/2
+205/245 > glm_score/2
+```
+
+# Kroswalidacja
+
