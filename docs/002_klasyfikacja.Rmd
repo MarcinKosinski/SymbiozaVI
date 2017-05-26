@@ -288,6 +288,17 @@ glm_score/2
 205/245 > glm_score/2
 ```
 
+Receiver operating characteristic
+
+```{r}
+library(ROCR)
+scores <- predict(object = glm_model, newdata = test, type = "response")
+labels <- test$status
+pred <- prediction(predictions = scores, labels = labels)
+perf <- performance(prediction.obj = pred, measure = "tpr", x.measure = "fpr")
+plot(perf, colorize = TRUE, main = "ROC")
+```
+
 ## Selekcja zmiennych -- uproszczenie modelu
 
 Dobór zmiennych ma na celu sprawienie, że model będzie bardziej zrozumiały dla człowieka. Łatwiej jest wyjaśnić pewne prawa i zachowania bazując na mniejszej ilości predyktorów. Zbudujmy więc tym razem model tylko na tych zmiennych, które okazały się istotne przy budowaniu wcześniejszego modelu.
