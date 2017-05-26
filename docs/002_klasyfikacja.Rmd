@@ -1,7 +1,7 @@
 ---
 title: "Klasyfikacja"
 author: "Krzysztof Słomczyński"
-date: "May 24, 2017"
+date: "26 maja 2017"
 output: html_document
 ---
 
@@ -129,11 +129,16 @@ ggplot(data = tumor, mapping = aes(x = x, y = y)) +
 
 `broom` -- pakiet ułatwiający korzystanie z modeli otrzymanych za pomocą podstawowego pakietu `stats`.
 
-`caret` -- pakiet ujednolicający środowisko pracy w uczeniu statystycznym.
+`caret` -- pakiet ujednolicający niezwykle bogate środowisko pracy (bazujące na wielu innych pakietach) w uczeniu statystycznym.
+
+`corrplot` -- pakiet służący do wizualizacji macierzy korelacji
+
+Nie będziemy zagłębiać się w pakiet `caret`. Posłużymy się nim tylko do preprocessingu.
 
 ```{r}
 library(broom)
 library(caret)
+library(corrplot)
 ```
 
 ## Podział danych na dwa zestawy -- treningowy i testowy.
@@ -155,6 +160,11 @@ near_zero_var
 matrix_set <- data.matrix(data_set)
 correlation <- cor(matrix_set)
 summary(correlation[upper.tri(correlation)])
+corrplot(correlation)
+corrplot(correlation, method = "number", type = "upper")
+diag(correlation) <- NA
+corrplot(correlation)
+corrplot(correlation, na.label = "NA")
 find_correlation <- findCorrelation(correlation, cutoff = .5,
                                     verbose = TRUE, names = TRUE)
 find_correlation
@@ -194,7 +204,21 @@ glm_glance <- glance(glm_model)
 glm_glance
 ```
 
-Możemy zauważyć, że ciągła zmienna objaśniająca `times` występuje tylko raz, natomiast każda dyskretna zmienna objaśniająca (np. `cancer`) została zastąpiona o jedną mniej zmienną (w tym wypadku dwoma) niż posiadała pierwotnie. Każda z tych nowych zmiennych (tzw. dummy variables) przybierają wartości 0 i 1 (dla danej obserwacji wystąpił dany typ raka, albo nie wystąpił). Wariantowi z trzecią -- brakującą zmienną odpowiada sytuacja, w której wszystkie nowopowstałe zmienne (od danej zmiennej) przyjmuja wartość 0.
+Możemy zauważyć, że ciągła zmienna objaśniająca `times` występuje tylko raz, natomiast każda dyskretna zmienna objaśniająca (np. `cancer`) została zastąpiona o jedną mniej zmienną niż posiadała pierwotnie (w tym wypadku dwoma). Każda z tych nowych zmiennych (tzw. dummy variables) przybierają wartości 0 i 1 (dla danej obserwacji wystąpił dany typ raka, albo nie wystąpił). Wariantowi z trzecią -- brakującą zmienną -- odpowiada sytuacja, w której wszystkie nowopowstałe zmienne (od danej zmiennej) przyjmują wartość 0.
+
+Przyjrzyjmy się istotności poszczególnych cech.
+
+```{r}
+summary(glm_model)
+```
+
+Możemy zauważyć, że istotnych jest 5 zmiennych objaśniających (przy czym trzy wywodzą się z dwóch kategorycznych). Zapiszmy sobie ich nazwy na przyszłość. Nie zapomnijmy przy tym, o zmiennej objaśnianej.
+
+```{r}
+significant_attributes <- c("status", "times", "cancer", "TP53", "ADCY8")
+```
+
+## Predykcja
 
 ```{r}
 prediction <- predict(object = glm_model, newdata = test, type = "response")
@@ -207,6 +231,7 @@ prediction_frame <- as.data.frame(prediction_frame)
 confusion_matrix <- table(prediction_frame$predicted, prediction_frame$actual,
                           dnn = c("predicted", "actual"))
 confusion_matrix <- confusionMatrix(confusion_matrix, positive = "Passed")
+confusion_matrix
 glm_score <- confusion_matrix$byClass["Sensitivity"] +
   confusion_matrix$byClass["Specificity"]
 glm_score <- unname(glm_score)
@@ -231,9 +256,9 @@ confusion_frame <- data.frame(actual = actual_class,
                               label = label,
                               fill = fill)
 
-ggplot(data =  confusion_frame,
-       mapping = aes(x = actual, y = prediction, fill = fill,
-                     label = label)) +
+glm_confusion_matrix <- ggplot(data =  confusion_frame,
+                               mapping = aes(x = actual, y = prediction,
+                                             fill = fill, label = label)) +
   geom_tile() +
   geom_text() +
   scale_fill_identity() +
@@ -242,9 +267,10 @@ ggplot(data =  confusion_frame,
   ggtitle("Macierz pomyłek") +
   theme_bw() +
   theme(plot.title = element_text(hjust = 0.5))
+glm_confusion_matrix
 ```
 
-Parametrów wynikających z macierzy pomyłek jest znacznie więcej. Skupimy się na dwóch poniższych i to za ich pomocą będziemy oceniać skuteczność naszego modelu.
+Parametrów wynikających z macierzy pomyłek jest znacznie więcej. Skupimy się na dwóch poniższych. Za ich pomocą będziemy oceniać skuteczność naszego modelu.
 
 - True Positive Rate -- TPR, Sensitivity
 
@@ -262,5 +288,165 @@ glm_score/2
 205/245 > glm_score/2
 ```
 
-# Kroswalidacja
+## Selekcja zmiennych -- uproszczenie modelu
 
+Dobór zmiennych ma na celu sprawienie, że model będzie bardziej zrozumiały dla człowieka. Łatwiej jest wyjaśnić pewne prawa i zachowania bazując na mniejszej ilości predyktorów. Zbudujmy więc tym razem model tylko na tych zmiennych, które okazały się istotne przy budowaniu wcześniejszego modelu.
+
+```{r}
+# Wybór zmiennych w zbiorze treningowym i testowym
+train_lite <- train[, significant_attributes]
+test_lite <- test[, significant_attributes]
+
+# Szkolenie i podsumowanie modelu
+glm_model_lite <- glm(formula = status ~ ., data = train_lite)
+summary(glm_model_lite)
+
+# Predykcja
+prediction_lite <- predict(object = glm_model_lite, newdata = test_lite,
+                           type = "response")
+prediction_lite <- round(x = prediction, digits = 0)
+prediction_frame_lite <- data.frame(actual = test_lite$status,
+                                    predicted = prediction_lite,
+                                    row.names = 1:length(test_lite$status))
+prediction_frame_lite <- sapply(X = prediction_frame_lite,
+                                FUN = plyr::mapvalues,
+                                from = c(0, 1),
+                                to = c("Survived", "Passed"))
+prediction_frame_lite <- as.data.frame(prediction_frame_lite)
+confusion_matrix_lite <- table(prediction_frame_lite$predicted,
+                          prediction_frame_lite$actual,
+                          dnn = c("predicted", "actual"))
+confusion_matrix_lite <- confusionMatrix(confusion_matrix_lite,
+                                         positive = "Passed")
+confusion_matrix_lite
+glm_score_lite <- confusion_matrix_lite$byClass["Sensitivity"] +
+  confusion_matrix_lite$byClass["Specificity"]
+glm_score_lite <- unname(glm_score_lite)
+
+# Czy wyniki są takie same?
+glm_score == glm_score_lite
+```
+
+Dostaliśmy taki sam wynik dla znacznie prostszego modelu -- super!
+
+## Algorytmy doboru zmiennych
+
+Czy zawsze musimy budować model na wszystkich zmiennych, patrzeć na ich poziom istotności, usuwać te najmniej istotne, budować nowy model i powtarzać całą operację?
+
+Do pomocy w automatyzacji tego procesu przybywa pakiet `leaps`. Dzięki niemu w prosty sposób możemy przeprowadzić na swoim zbiorze danych jedną z trzech selekcji zmiennych
+
+- Best Subset Regression
+
+    tworzy $2^p$ modeli, gdzie $p$ to liczba zmiennych objaśniających
+    
+- Forward/Backward Stepwise Selection
+
+    tworzy $p^2$ modeli
+
+*Best Subset Regression* tworzy modele na zasadzie "każda cecha każdą". *Forward/Backward Stepwise Selection* dobierają jedną cechę i do niej dobierają następną, poźniej do dwóch poprzednich kolejną aż do ich wyczerpania. *Best Subset Regression* jest czasochłonne pod względem obliczeniowym. Zróbmy zatem *Forward Stepwise Selection*.
+
+```{r}
+library(leaps)
+
+number_of_features <- nrow(glm_tidy) - 1
+glm_model_fss <- regsubsets(x = status ~ ., data = train,
+                            nvmax = number_of_features, method = "forward")
+plot(glm_model_fss, scale = "Cp")
+glm_model_fss_summary <- summary(glm_model_fss)
+glm_model_fss_summary
+plot(glm_model_fss_summary$cp, xlab = "Liczba predyktorów", ylab = "Cp")
+points(which.min(glm_model_fss_summary$cp),
+       min(glm_model_fss_summary$cp),
+       pch = 20,
+       col = "red")
+```
+
+Współczynnik Cp Mallowa uwzględnia rozmiar modelu. Można by wyjść z założenia, że im bardziej skomplikowany -- polegający na większej ilości predyktorów model -- tym lepszy. Nie jest to prawdą. Przy bardzo mocnym dopasowaniu modelu do danych może dojść do tzw. *overfittingu*. Model zbyt mocno dopasowany do danych może dawać gorsze predykcje niż ten spasowany w mniejszym stopniu. Okazuje się, że najodpowiedniejszy model w tym przypadku, to taki zbudowany na 6 zmiennych (o jedną więcej niż poprzedni model).
+
+## k-krotna kroswalidacja
+
+Jedną z najpopularniejszych metod doboru zmiennych jest *k-krotna kroswalidacja*, gdzie k najczęściej przybiera wartość 5 lub 10. Polega ona na dzieleniu zbioru testowego na $k$ podzbiorów, szkoleniu modelu na $k - 1$ podzbiorach, walidacji tego modelu na jednym podzbiorze (walidacyjnym) i powtórzeniu całej operacji $k$ razy, za każdym razem przyjmując za zbiór walidacyjny inny podzbiór. Błędy dla każdego rozmiaru modelu ze wszystkich $k$ modeli są uśredniane.
+
+```{r}
+# Na ile foldów (podzbiorów) podzielimy nasz zestaw treningowy
+K <- 10
+
+# Podział zestawu treningowego na podzbiory
+set.seed(42)
+folds <- sample(rep(1:K, length = nrow(train)))
+table(folds)
+
+# Macierz błędów
+cv_errors <- matrix(NA, K, number_of_features)
+
+# k-krotna kroswalidacja
+predict.regsubsets <- function(object, formula, data, id) {
+  mat <- model.matrix(formula, data)
+  coefi <- coef(object, id = id)
+  mat[, names(coefi)] %*% coefi
+}
+
+for (k in 1:K) {
+  form <- as.formula(status ~ .)
+  best_fit <- regsubsets(form,
+                         train[folds != k, ],
+                         nvmax = number_of_features,
+                         method = "forward")
+  for (i in 1:(glm_model_fss$nvmax - 1)) {
+    pred <- predict.regsubsets(best_fit, form, train[folds == k, ], id = i)
+    cv_errors[k, i] <- mean((train$status[folds == k] - pred) ^ 2)
+  }
+}
+
+rmse_cv <- sqrt(apply(cv_errors, 2, mean))
+
+plot(
+  rmse_cv,
+  xlab = "Rozmiar modelu",
+  ylab = "Średnia kwadratowa błędów",
+  pch = 19,
+  type = "b"
+)
+points(which.min(rmse_cv),
+       min(rmse_cv),
+       pch = 20,
+       col = "red")
+```
+
+
+
+# Inne algorytmy związane z doborem zmiennych
+
+- Regresja Grzbietowa (Ridge Regression)
+- Lasso
+
+# Inne algorytmy związane z klasyfikacją
+
+- Liniowa analiza dyskryminacyjna (LDA)
+
+    Bardziej stabilna metoda klasyfikacji niż regresja logistyczna w wypadku, gdy istnieją zmienne objaśniające potrafiące niemalże idealnie odróżnić klasy (dla takich zmiennych współczynniki przy regresji logistycznej dążyłyby do nieskończoności). Regresja logistyczna została opracowana na płaszczyźnie biologii i medycyny, gdzie tak silne predyktory nie występują. LDA jest bardziej popularne w sytuacji, gdy mamy do czynienia z wiekszą ilością klas niż dwie.
+
+- k najbliższych sąsiadów (k-NN)
+
+    
+
+- Lasy losowe (Random forest)
+
+    
+
+- Maszyna wektorów nośnych (SVM)
+
+    
+
+- Algorytm centroidów (k-means)
+
+    Należy do grupy algorytmów uczenia bez nadzoru (przydziela obserwacje do klas nie mając wcześniej informacji, że takie istnieją).
+
+- Sieci neuronowe
+
+
+# Koniec
+
+Na zakończenie  -- selekcja zmiennych za pomocą 3 metod na zbiorze danych zawierających eskpresje genów w postaci 20 tysięcy zmiennych.
+
+![](../img/venn.png)
