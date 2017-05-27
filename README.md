@@ -55,3 +55,4 @@ Krzysztof Słomczyński jest zagorzałym entuzjastą pakietu R. Na co dzień pra
 - [Programowanie w języku R, M. Gągolewski](http://rksiazka.rexamine.com/)
 - [In-depth introduction to machine learning in 15 hours of expert videos](http://www.r-bloggers.com/in-depth-introduction-to-machine-learning-in-15-hours-of-expert-videos/)
 - [Microsoft Launches Its First Free Online R Course on edX](http://www.r-bloggers.com/microsoft-launches-its-first-free-online-r-course-on-edx/)
+- [Statistical Learning, T. Hastie and R. Tibshirani](https://www.r-bloggers.com/in-depth-introduction-to-machine-learning-in-15-hours-of-expert-videos/)
