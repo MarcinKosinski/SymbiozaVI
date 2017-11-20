@@ -64,7 +64,7 @@ lm_model <- lm(formula = y ~ x, data = tumor)
 
 plot(x = tumor$x,
      y = tumor$y,
-     main = "Regresja liniowa – nie dobra!",
+     main = "Regresja liniowa – niedobra!",
      xlab = "Rozmiar guza [j]",
      ylab = "Złośliwy?",
      xlim = c(0, 20),
@@ -85,7 +85,7 @@ ggplot(data = tumor, mapping = aes(x = x, y = y)) +
   geom_vline(xintercept = 7, col = "red", lty = 2) +
   scale_y_continuous(breaks = c(0, 1), labels = c("Nie", "Tak")) +
   labs(x = "Rozmiar guza [j]", y = "Złośliwy?") +
-  ggtitle("Regresja liniowa – nie dobra!") +
+  ggtitle("Regresja liniowa – niedobra!") +
   theme(plot.title = element_text(hjust = 0.5))
 ```
 
